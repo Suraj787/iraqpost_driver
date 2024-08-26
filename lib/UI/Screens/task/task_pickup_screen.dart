@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:developer';
 import 'package:flutter/material.dart';
+import 'package:flutter_compass/flutter_compass.dart';
 import 'package:flutter_html/flutter_html.dart' as html;
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_tts/flutter_tts.dart';
@@ -15,6 +16,7 @@ import 'package:iraqdriver/utils/useful_methods.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:html/dom.dart' as dom;
 import 'package:html/parser.dart' as html_parser;
+import 'dart:math' as math;
 
 class TaskParkedScreen extends StatefulWidget {
   const TaskParkedScreen({super.key});
@@ -34,9 +36,13 @@ class _TaskParkedScreenState extends State<TaskParkedScreen>
   String distanceToTurning = '';
   String nameOfLocation = '';
 
+  double heading = 0.0;
+
   double? totalDriveTime;
 
   bool _locationIsMoved = false;
+
+  int? estimatedTravelTime;
 
   Widget? icon;
   Widget? icon2;
@@ -67,9 +73,6 @@ class _TaskParkedScreenState extends State<TaskParkedScreen>
   int count = 0;
   bool isStarted = false;
 
-  late AnimationController _bounceController;
-  late Animation<double> _bounceAnimation;
-
   @override
   void initState() {
     super.initState();
@@ -77,26 +80,24 @@ class _TaskParkedScreenState extends State<TaskParkedScreen>
     _getLocationUpdates();
     // getDirections();
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      mapController.move(controller.initialPosition.value, 18.0);
+    if (_locationIsMoved == false) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        mapController.move(controller.initialPosition.value, 18.0);
 
-      _updateMapOrientation();
+        _updateMapOrientation();
+      });
+    }
+
+    FlutterCompass.events?.listen((CompassEvent event) {
+      setState(() {
+        heading = event.heading ?? 0;
+      });
     });
-
-    _bounceController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 500),
-    )..repeat(reverse: true);
-
-    _bounceAnimation = Tween<double>(begin: 0.0, end: 15.0)
-        .chain(CurveTween(curve: Curves.easeInOut))
-        .animate(_bounceController);
   }
 
   @override
   void dispose() {
     positionStreamSubscription?.cancel();
-    _bounceController.dispose();
     super.dispose();
   }
 
@@ -140,9 +141,28 @@ class _TaskParkedScreenState extends State<TaskParkedScreen>
     positionStreamSubscription = Geolocator.getPositionStream(
       locationSettings: const LocationSettings(
         accuracy: LocationAccuracy.high,
-        distanceFilter: 10,
+        distanceFilter: 0,
       ),
     ).listen((Position position) async {
+      if (LatLng(position.latitude, position.longitude) ==
+          controller.destinationPosition) {
+        showDialog(
+            context: context,
+            builder: (context) {
+              return AlertDialog(
+                title: const Text('You have reached your destination'),
+                actions: [
+                  TextButton(
+                    onPressed: () {
+                      Get.back();
+                    },
+                    child: const Text('Ok'),
+                  )
+                ],
+              );
+            });
+        Get.back();
+      }
       _hasDeviatedFromRoute(position);
 
       if (!isStarted) {
@@ -188,17 +208,13 @@ class _TaskParkedScreenState extends State<TaskParkedScreen>
 
         speedInKph = speedAccuracy < 4 ? speed * 3.6 : 0;
 
+        setState(() {
+          staticPolylinePoints = controller.polylineLatLngs;
+          hasDeviated = false;
+        });
+
         log('Speed: $speedInKph km/h');
       } else if (isStarted) {
-        const Distance distance = Distance();
-        final distanceInKm = distance(
-          LatLng(position.latitude, position.longitude),
-          LatLng(controller.destinationPosition!.latitude,
-              controller.destinationPosition!.longitude),
-        );
-
-        debugPrint('$distanceInKm');
-
         updateMap(position);
 
         double speed = position.speed;
@@ -358,8 +374,8 @@ class _TaskParkedScreenState extends State<TaskParkedScreen>
         ) /
         1000;
 
-    // If the user is more than 50 meters away from the route, they have deviated
-    if (distanceToRoute > 0.05) {
+    // If the user is more than 10 meters away from the route, they have deviated
+    if (distanceToRoute > 0.01) {
       hasDeviated = true;
     } else {
       hasDeviated = false;
@@ -428,6 +444,7 @@ class _TaskParkedScreenState extends State<TaskParkedScreen>
   Widget build(BuildContext context) {
     log('${controller.polylineLatLngs}');
     log('${controller.directionsModel.toJson()}');
+    print(heading);
     return Directionality(
       textDirection: (language == 'en') ? TextDirection.ltr : TextDirection.rtl,
       child: Scaffold(
@@ -504,34 +521,13 @@ class _TaskParkedScreenState extends State<TaskParkedScreen>
                           if (navigationPointerPosition != null) ...{
                             Marker(
                               point: navigationPointerPosition!,
-                              child: AnimatedBuilder(
-                                animation: _bounceAnimation,
-                                builder: (context, child) {
-                                  return Stack(
-                                    alignment: Alignment.center,
-                                    children: [
-                                      Transform.scale(
-                                        scale:
-                                            0.5 + _bounceAnimation.value / 30,
-                                        child: Container(
-                                          decoration: BoxDecoration(
-                                            shape: BoxShape.circle,
-                                            color: const Color(0xff234274)
-                                                .withOpacity(0.8),
-                                          ),
-                                        ),
-                                      ),
-                                      Container(
-                                        height: 15,
-                                        width: 15,
-                                        decoration: const BoxDecoration(
-                                          shape: BoxShape.circle,
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                                    ],
-                                  );
-                                },
+                              child: Transform.rotate(
+                                angle: (heading * (math.pi / 180)),
+                                child: const Icon(
+                                  Icons.navigation,
+                                  size: 30,
+                                  color: Color(0xff234274),
+                                ),
                               ),
                             ),
                           }
