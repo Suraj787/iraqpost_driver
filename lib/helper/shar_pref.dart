@@ -10,6 +10,8 @@ class Shared_Preferences {
   static const String trackData = "trackData";
   static const String trackData1 = "trackData1";
   static const String language = "language";
+  static const String latKey = "latitude";
+  static const String lngKey = "longitude";
 
   static Future prefSetInt(String key, int value) async {
     prefs = await SharedPreferences.getInstance();
@@ -94,6 +96,23 @@ class Shared_Preferences {
     } else {
       return douDef;
     }
+  }
+
+  static Future<void> saveLocation(double latitude, double longitude) async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(latKey, latitude);
+    await prefs.setDouble(lngKey, longitude);
+  }
+
+  static Future<Map<String, double?>> getLocation() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    double? latitude = prefs.getDouble(latKey);
+    double? longitude = prefs.getDouble(lngKey);
+
+    return {
+      "latitude": latitude,
+      "longitude": longitude,
+    };
   }
 
   static Future clearAllPref() async {

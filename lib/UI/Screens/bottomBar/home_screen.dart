@@ -4,7 +4,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
-import 'package:internet_popup/internet_popup.dart';
+// import 'package:internet_popup/internet_popup.dart';
 import 'package:iraqdriver/controller/common_controller.dart';
 import 'package:iraqdriver/helper/shar_pref.dart';
 import 'package:iraqdriver/model/login_model.dart';

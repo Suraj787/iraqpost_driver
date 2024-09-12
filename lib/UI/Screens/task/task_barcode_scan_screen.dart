@@ -15,7 +15,6 @@ class TaskBarcodeScanScreen extends StatefulWidget {
 }
 
 class _TaskBarcodeScanScreenState extends State<TaskBarcodeScanScreen> {
-
   MobileScannerController barcodeController = MobileScannerController();
   String code = "";
 
@@ -27,7 +26,8 @@ class _TaskBarcodeScanScreenState extends State<TaskBarcodeScanScreen> {
 
   String? language;
   getLanguage() async {
-    language = await Shared_Preferences.prefGetString(Shared_Preferences.language,'en');
+    language = await Shared_Preferences.prefGetString(
+        Shared_Preferences.language, 'en');
     setState(() {});
   }
 
@@ -39,11 +39,12 @@ class _TaskBarcodeScanScreenState extends State<TaskBarcodeScanScreen> {
         appBar: AppBar(
           elevation: 4,
           shadowColor: Colors.black38,
-          title: Text(AppLocalizations.of(context)!.service,style: TextStyle(
-              color: Color(0xFF070D17),
-              fontSize: 24,
-              fontWeight: FontWeight.w600)),
-          leading:  IconButton(
+          title: Text(AppLocalizations.of(context)!.service,
+              style: const TextStyle(
+                  color: Color(0xFF070D17),
+                  fontSize: 24,
+                  fontWeight: FontWeight.w600)),
+          leading: IconButton(
             onPressed: () {
               Get.back();
             },
@@ -52,53 +53,59 @@ class _TaskBarcodeScanScreenState extends State<TaskBarcodeScanScreen> {
           ),
         ),
         body: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 25,vertical: 20),
+          padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-
-              Text(AppLocalizations.of(context)!.takePicture,style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF404C5F)),
+              Text(
+                AppLocalizations.of(context)!.takePicture,
+                style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF404C5F)),
               ),
-              SizedBox(height: Get.height*0.01),
-              Text(AppLocalizations.of(context)!.captureThePackage,style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w400,
-                  color: Color(0xFF404C5F)),
+              SizedBox(height: Get.height * 0.01),
+              Text(
+                AppLocalizations.of(context)!.captureThePackage,
+                style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w400,
+                    color: Color(0xFF404C5F)),
               ),
-              SizedBox(height: Get.height*0.02),
+              SizedBox(height: Get.height * 0.02),
               Expanded(
                 child: Stack(
                   alignment: Alignment.center,
                   children: [
                     MobileScanner(
-                      allowDuplicates: false,
                       controller: barcodeController,
-                      onDetect: (barcode, args) {
-
+                      onDetect: (barcode) {
                         setState(() {
-                          code = barcode.rawValue!;
+                          code = barcode.barcodes.first.rawValue!;
                         });
-
                       },
                     ),
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 25,vertical: 10),
-                      child: Image.asset(Images.scannerIcon, height: Get.height,),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 25, vertical: 10),
+                      child: Image.asset(
+                        Images.scannerIcon,
+                        height: Get.height,
+                      ),
                     ),
                   ],
                 ),
               ),
-              SizedBox(height: Get.height*0.02),
+              SizedBox(height: Get.height * 0.02),
               CustomButtons(
-                text: AppLocalizations.of(context)!.continueTitle,onTap: (){
-                setState(() {
-                  code = "";
-                });
-                Get.toNamed(RouteHelper.getTaskFinishScreen());
-              }, noFillData: code == "",
+                text: AppLocalizations.of(context)!.continueTitle,
+                onTap: () {
+                  setState(() {
+                    code = "";
+                  });
+                  Get.toNamed(RouteHelper.getTaskFinishScreen());
+                },
+                noFillData: code == "",
               ),
             ],
           ),
@@ -106,8 +113,4 @@ class _TaskBarcodeScanScreenState extends State<TaskBarcodeScanScreen> {
       ),
     );
   }
-
 }
-
-
-

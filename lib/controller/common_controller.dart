@@ -57,6 +57,7 @@ class CommonController extends GetxController implements GetxService {
   }
 
   final Rx<Location> location = Location().obs;
+  Rx<Location> currentLocation = Location().obs;
   RxBool isTracking = false.obs;
 
   List<LatLng> polylineLatLngs = <LatLng>[].obs;

@@ -1,10 +1,8 @@
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:internet_popup/internet_popup.dart';
-
+// import 'package:internet_popup/up.dart';
 import '../../../controller/auth_controller.dart';
-
 import '../../../helper/route_helper.dart';
 import '../../../helper/shar_pref.dart';
 import '../../../utils/image.dart';
@@ -25,11 +23,11 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   void initState() {
     super.initState();
-    Connectivity().onConnectivityChanged.listen((ConnectivityResult result) {
-      if (result == ConnectivityResult.none) {
-        InternetPopup().initialize(context: context);
-      }
-    });
+    // Connectivity().onConnectivityChanged.listen((ConnectivityResult result) {
+    //   if (result == ConnectivityResult.none) {
+    //     InternetPopup().initialize(context: context);
+    //   }
+    // });
     getLanguage();
   }
 

@@ -1,9 +1,12 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'dart:async';
 import 'dart:developer';
 import 'package:flutter/material.dart';
 import 'package:flutter_compass/flutter_compass.dart';
 import 'package:flutter_html/flutter_html.dart' as html;
 import 'package:flutter_map/flutter_map.dart';
+import 'package:flutter_map_tile_caching/flutter_map_tile_caching.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
@@ -18,6 +21,8 @@ import 'package:html/dom.dart' as dom;
 import 'package:html/parser.dart' as html_parser;
 import 'dart:math' as math;
 
+import 'package:location/location.dart';
+
 class TaskParkedScreen extends StatefulWidget {
   const TaskParkedScreen({super.key});
 
@@ -30,6 +35,7 @@ class _TaskParkedScreenState extends State<TaskParkedScreen>
   final CommonController controller =
       Get.put(CommonController(commonRepo: Get.find()));
   MapController mapController = MapController();
+  AnimationController? animationController;
   FlutterTts flutterTts = FlutterTts();
   String? text;
   String? nextText;
@@ -61,6 +67,8 @@ class _TaskParkedScreenState extends State<TaskParkedScreen>
 
   List instructionsData = [];
 
+  LatLng? _previousPosition;
+
   List<String> navigationText = [];
 
   List<LatLng> updatedPolyline = [];
@@ -78,11 +86,10 @@ class _TaskParkedScreenState extends State<TaskParkedScreen>
     super.initState();
     getLanguage();
     _getLocationUpdates();
-    // getDirections();
 
     if (_locationIsMoved == false) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        mapController.move(controller.initialPosition.value, 18.0);
+        mapController.move(controller.initialPosition.value, 16.0);
 
         _updateMapOrientation();
       });
@@ -97,28 +104,25 @@ class _TaskParkedScreenState extends State<TaskParkedScreen>
 
   @override
   void dispose() {
-    positionStreamSubscription?.cancel();
+    animationController?.dispose();
     super.dispose();
   }
 
   void _updateMapOrientation() async {
-    var heading = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high);
-
     setState(() {
-      mapController.rotate(heading.heading);
+      mapController.rotate(heading);
     });
   }
 
   DateTime currentTime = DateTime.now();
 
   getDirections({
-    required Position position,
+    required LocationData locationData,
     required LatLng destinationLocation,
   }) async {
     await controller.getDirectionsApiNav(
       context,
-      sourceLocation: LatLng(position.latitude, position.longitude),
+      sourceLocation: LatLng(locationData.latitude!, locationData.longitude!),
       destinationLocation: controller.destinationPosition!,
     );
 
@@ -130,22 +134,108 @@ class _TaskParkedScreenState extends State<TaskParkedScreen>
     controller.polylineLatLngs = decodePolyline(
         controller.directionsModel.routeInfo!.first.geometry!.coordinates!);
 
-    _updateNavigationPointer(position);
-
-    _updateTurnByTurnNavigation(position);
+    _updateTurnByTurnNavigation(locationData);
   }
 
   /// Gets the users location and updates the map
-  StreamSubscription<Position>? positionStreamSubscription;
-  void _getLocationUpdates() async {
-    positionStreamSubscription = Geolocator.getPositionStream(
-      locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.high,
-        distanceFilter: 0,
-      ),
-    ).listen((Position position) async {
-      if (LatLng(position.latitude, position.longitude) ==
-          controller.destinationPosition) {
+  // StreamSubscription<Position>? positionStreamSubscription;
+  // void _getLocationUpdates() async {
+  //   positionStreamSubscription = Geolocator.getPositionStream(
+  //     locationSettings: const LocationSettings(
+  //       accuracy: LocationAccuracy.high,
+  //       distanceFilter: 1,
+  //     ),
+  //   ).listen((Position position) async {
+  //     if (LatLng(position.latitude, position.longitude) ==
+  //         controller.destinationPosition) {
+  //       showDialog(
+  //           context: context,
+  //           builder: (context) {
+  //             return AlertDialog(
+  //               title: const Text('You have reached your destination'),
+  //               actions: [
+  //                 TextButton(
+  //                   onPressed: () {
+  //                     Get.back();
+  //                   },
+  //                   child: const Text('Ok'),
+  //                 )
+  //               ],
+  //             );
+  //           });
+  //       Get.back();
+  //     }
+  //     _hasDeviatedFromRoute(position);
+
+  //     if (!isStarted) {
+  //       getDirections(
+  //         destinationLocation: controller.destinationPosition!,
+  //         position: position,
+  //       );
+
+  //       setState(() {
+  //         staticPolylinePoints = controller.polylineLatLngs;
+  //       });
+
+  //       final distance = Geolocator.distanceBetween(
+  //         position.latitude,
+  //         position.longitude,
+  //         controller.destinationPosition!.latitude,
+  //         controller.destinationPosition!.longitude,
+  //       );
+
+  //       debugPrint('$distance');
+
+  //       double speed = position.speed;
+  //       double speedAccuracy = position.speedAccuracy;
+
+  //       speedInKph = speedAccuracy < 4 ? speed * 3.6 : 0;
+
+  //       log('Speed: $speedInKph km/h');
+
+  //       distanceToDestination = '${(distance / 1000).toStringAsFixed(1)} km';
+
+  //       log('$distanceToDestination to destination');
+
+  //       setState(() {
+  //         isStarted = true;
+  //       });
+  //     } else if (isStarted && hasDeviated) {
+  //       getDirections(
+  //           destinationLocation: controller.destinationPosition!,
+  //           position: position);
+
+  //       double speed = position.speed;
+  //       double speedAccuracy = position.speedAccuracy;
+
+  //       speedInKph = speedAccuracy < 4 ? speed * 3.6 : 0;
+
+  //       setState(() {
+  //         staticPolylinePoints = controller.polylineLatLngs;
+  //         hasDeviated = false;
+  //       });
+
+  //       log('Speed: $speedInKph km/h');
+  //     } else if (isStarted) {
+  //       updateMap(position);
+
+  //       double speed = position.speed;
+  //       double speedAccuracy = position.speedAccuracy;
+
+  //       speedInKph = speedAccuracy < 4 ? speed * 3.6 : 0;
+
+  //       log('Speed: $speedInKph km/h');
+  //     }
+  //   });
+  // }
+
+  void _getLocationUpdates() {
+    controller.currentLocation.value.onLocationChanged
+        .listen((LocationData locationData) {
+      controller.currentPosition.value =
+          LatLng(locationData.latitude!, locationData.longitude!);
+
+      if (controller.currentPosition.value == controller.destinationPosition) {
         showDialog(
             context: context,
             builder: (context) {
@@ -163,50 +253,30 @@ class _TaskParkedScreenState extends State<TaskParkedScreen>
             });
         Get.back();
       }
-      _hasDeviatedFromRoute(position);
+
+      _hasDeviatedFromRoute(locationData);
 
       if (!isStarted) {
         getDirections(
           destinationLocation: controller.destinationPosition!,
-          position: position,
+          locationData: locationData,
         );
 
-        setState(() {
-          staticPolylinePoints = controller.polylineLatLngs;
-        });
+        double speed = locationData.speed!;
+        double speedAccuracy = locationData.speedAccuracy!;
 
-        final distance = Geolocator.distanceBetween(
-          position.latitude,
-          position.longitude,
-          controller.destinationPosition!.latitude,
-          controller.destinationPosition!.longitude,
-        );
-
-        debugPrint('$distance');
-
-        double speed = position.speed;
-        double speedAccuracy = position.speedAccuracy;
-
-        speedInKph = speedAccuracy < 4 ? speed * 3.6 : 0;
+        speedInKph = speedAccuracy < 4 ? 0 : speed * 3.6;
 
         log('Speed: $speedInKph km/h');
-
-        distanceToDestination = '${(distance / 1000).toStringAsFixed(1)} km';
-
-        log('$distanceToDestination to destination');
-
-        setState(() {
-          isStarted = true;
-        });
       } else if (isStarted && hasDeviated) {
         getDirections(
             destinationLocation: controller.destinationPosition!,
-            position: position);
+            locationData: locationData);
 
-        double speed = position.speed;
-        double speedAccuracy = position.speedAccuracy;
+        double speed = locationData.speed!;
+        double speedAccuracy = locationData.speedAccuracy!;
 
-        speedInKph = speedAccuracy < 4 ? speed * 3.6 : 0;
+        speedInKph = speedAccuracy < 4 ? 0 : speed * 3.6;
 
         setState(() {
           staticPolylinePoints = controller.polylineLatLngs;
@@ -215,10 +285,10 @@ class _TaskParkedScreenState extends State<TaskParkedScreen>
 
         log('Speed: $speedInKph km/h');
       } else if (isStarted) {
-        updateMap(position);
+        updateMap(locationData);
 
-        double speed = position.speed;
-        double speedAccuracy = position.speedAccuracy;
+        double speed = locationData.speed!;
+        double speedAccuracy = locationData.speedAccuracy!;
 
         speedInKph = speedAccuracy < 4 ? speed * 3.6 : 0;
 
@@ -227,15 +297,14 @@ class _TaskParkedScreenState extends State<TaskParkedScreen>
     });
   }
 
-  void updateMap(Position position) async {
-    updatePolyline(position);
-    _updateTurnByTurnNavigation(position);
-    _updateNavigationPointer(position);
+  void updateMap(LocationData locationData) async {
+    updatePolyline(locationData);
+    _updateTurnByTurnNavigation(locationData);
   }
 
-  void updatePolyline(Position currentPosition) {
+  void updatePolyline(LocationData currentPosition) {
     LatLng userLocation =
-        LatLng(currentPosition.latitude, currentPosition.longitude);
+        LatLng(currentPosition.latitude!, currentPosition.longitude!);
 
     // Find the closest point on the route
     LatLng closestPoint =
@@ -257,22 +326,11 @@ class _TaskParkedScreenState extends State<TaskParkedScreen>
     }
   }
 
-  LatLng? navigationPointerPosition;
-
-  void _updateNavigationPointer(Position position) async {
-    double heading = position.heading;
-
-    log('heading: $heading');
-
-    setState(() {
-      mapController.move(LatLng(position.latitude, position.longitude), 18);
-      navigationPointerPosition = LatLng(position.latitude, position.longitude);
-    });
-  }
-
-  void _updateTurnByTurnNavigation(Position position) {
+  void _updateTurnByTurnNavigation(LocationData locationData) {
     // List of steps from the directions API
     List<Steps> steps = controller.directionsModel.routeInfo!.first.steps!;
+
+    log('$steps');
 
     // Initial text and icon setup
     text = steps.first.instruction;
@@ -289,7 +347,7 @@ class _TaskParkedScreenState extends State<TaskParkedScreen>
 
     // Calculate the remaining distance from the current position
     double distanceRemaining = calculateDistanceRemaining(
-        routePolyline, LatLng(position.latitude, position.longitude));
+        routePolyline, LatLng(locationData.latitude!, locationData.longitude!));
     print(
         "Distance remaining: ${distanceRemaining.toStringAsFixed(2)} kilometers");
 
@@ -359,16 +417,16 @@ class _TaskParkedScreenState extends State<TaskParkedScreen>
     return distanceRemaining;
   }
 
-  void _hasDeviatedFromRoute(Position position) {
+  void _hasDeviatedFromRoute(LocationData locationData) {
     // Find the closest point on the route
     LatLng closestPoint = findClosestPointOnRoute(
-        LatLng(position.latitude, position.longitude),
+        LatLng(locationData.latitude!, locationData.longitude!),
         controller.polylineLatLngs);
 
     // Calculate the distance between the user's current position and the closest point on the route
     double distanceToRoute = Geolocator.distanceBetween(
-          position.latitude,
-          position.longitude,
+          locationData.latitude!,
+          locationData.longitude!,
           closestPoint.latitude,
           closestPoint.longitude,
         ) /
@@ -382,6 +440,8 @@ class _TaskParkedScreenState extends State<TaskParkedScreen>
     }
   }
 
+  Set<Marker> animationMarkers = {};
+
   Widget? getIconImage(String instruction) {
     instruction = instruction.toLowerCase();
     if (instruction.contains('north') || instruction.contains('south')) {
@@ -389,7 +449,7 @@ class _TaskParkedScreenState extends State<TaskParkedScreen>
         Images.departStraight,
         color: Colors.white,
       );
-    } else if (instruction.contains('right') || instruction.contains('East')) {
+    } else if (instruction.contains('right') || instruction.contains('east')) {
       return const Icon(
         Icons.turn_right,
         size: 36,
@@ -400,7 +460,7 @@ class _TaskParkedScreenState extends State<TaskParkedScreen>
         Images.sharpLeft,
         color: Colors.white,
       );
-    } else if (instruction.contains('left') || instruction.contains('West')) {
+    } else if (instruction.contains('left') || instruction.contains('west')) {
       return const Icon(
         Icons.turn_left,
         size: 36,
@@ -432,19 +492,12 @@ class _TaskParkedScreenState extends State<TaskParkedScreen>
         color: Colors.white,
       );
     } else {
-      return const Icon(
-        Icons.location_on,
-        size: 36,
-        color: Colors.white,
-      );
+      return null;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    log('${controller.polylineLatLngs}');
-    log('${controller.directionsModel.toJson()}');
-    print(heading);
     return Directionality(
       textDirection: (language == 'en') ? TextDirection.ltr : TextDirection.rtl,
       child: Scaffold(
@@ -453,88 +506,92 @@ class _TaskParkedScreenState extends State<TaskParkedScreen>
             Column(
               children: [
                 Expanded(
-                  child: FlutterMap(
-                    mapController: mapController,
-                    options: MapOptions(
-                      initialCenter: controller.initialPosition.value,
-                      initialZoom: 12.0,
-                      interactionOptions: const InteractionOptions(
-                        flags: InteractiveFlag.all,
-                      ),
-                      onPositionChanged: (position, hasGesture) {
-                        if (hasGesture) {
-                          setState(() {
-                            _locationIsMoved = true;
-                          });
-                        }
-                      },
-                    ),
-                    children: [
-                      TileLayer(
-                        urlTemplate: AppStrings.baseMap,
-                        subdomains: const ['server', 'services', 'www'],
-                        additionalOptions: {
-                          'apiKey': arcGisApiKey,
-                        },
-                      ),
-                      PolylineLayer(
-                        polylines: [
-                          Polyline(
-                            points: staticPolylinePoints,
-                            strokeWidth: 4.0,
-                            color: const Color(0xFFB6CAEB),
+                  child: StreamBuilder<Object>(
+                      stream: null,
+                      builder: (context, snapshot) {
+                        return FlutterMap(
+                          mapController: mapController,
+                          options: MapOptions(
+                            initialCenter: controller.initialPosition.value,
+                            initialZoom: 12.0,
+                            interactionOptions: const InteractionOptions(
+                              flags: InteractiveFlag.all,
+                            ),
+                            onPositionChanged: (position, hasGesture) {
+                              if (hasGesture) {
+                                setState(() {
+                                  _locationIsMoved = true;
+                                });
+                              }
+                            },
                           ),
-                          Polyline(
-                            points: updatedPolyline.isEmpty
-                                ? controller.polylineLatLngs
-                                : updatedPolyline,
-                            strokeWidth: 4.0,
-                            color: const Color(0xff234274),
-                          ),
-                        ],
-                      ),
-                      MarkerLayer(
-                        markers: [
-                          Marker(
-                            point: controller.initialPosition.value,
-                            child: Container(
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: Colors.white,
-                                border: Border.all(
-                                  color: Colors.black38,
-                                  width: 2,
+                          children: [
+                            TileLayer(
+                              urlTemplate: AppStrings.baseMap,
+                              subdomains: const ['server', 'services', 'www'],
+                              additionalOptions: {
+                                'apiKey': arcGisApiKey,
+                              },
+                              tileProvider:
+                                  const FMTCStore('mapStore').getTileProvider(),
+                            ),
+                            PolylineLayer(
+                              polylines: [
+                                Polyline(
+                                  points: staticPolylinePoints,
+                                  strokeWidth: 8.0,
+                                  color: const Color(0xFFB6CAEB),
                                 ),
-                              ),
-                            ),
-                            height: 15,
-                            width: 15,
-                          ),
-                          Marker(
-                            point: controller.destinationPosition!,
-                            child: const Icon(
-                              Icons.location_on,
-                              color: Colors.red,
-                              size: 40,
-                            ),
-                          ),
-                          if (navigationPointerPosition != null) ...{
-                            Marker(
-                              point: navigationPointerPosition!,
-                              child: Transform.rotate(
-                                angle: (heading * (math.pi / 180)),
-                                child: const Icon(
-                                  Icons.navigation,
-                                  size: 30,
-                                  color: Color(0xff234274),
+                                Polyline(
+                                  points: updatedPolyline.isEmpty
+                                      ? controller.polylineLatLngs
+                                      : updatedPolyline,
+                                  strokeWidth: 8.0,
+                                  color: const Color(0xff234274),
                                 ),
-                              ),
+                              ],
                             ),
-                          }
-                        ],
-                      ),
-                    ],
-                  ),
+                            MarkerLayer(
+                              markers: [
+                                Marker(
+                                  point: controller.initialPosition.value,
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: Colors.white,
+                                      border: Border.all(
+                                        color: Colors.black38,
+                                        width: 2,
+                                      ),
+                                    ),
+                                  ),
+                                  height: 15,
+                                  width: 15,
+                                ),
+                                Marker(
+                                  point: controller.destinationPosition!,
+                                  child: const Icon(
+                                    Icons.location_on,
+                                    color: Colors.red,
+                                    size: 40,
+                                  ),
+                                ),
+                                Marker(
+                                  point: controller.currentPosition.value,
+                                  child: Transform.rotate(
+                                    angle: (heading * (math.pi / 180)),
+                                    child: const Icon(
+                                      Icons.navigation,
+                                      size: 30,
+                                      color: Color(0xff234274),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        );
+                      }),
                 ),
               ],
             ),
@@ -650,9 +707,7 @@ class _TaskParkedScreenState extends State<TaskParkedScreen>
                         _locationIsMoved = false;
                       });
                       mapController.move(
-                          navigationPointerPosition ??
-                              controller.initialPosition.value,
-                          18.0);
+                          controller.currentPosition.value, 18.0);
                       _updateMapOrientation();
                     },
                     child: Material(
@@ -876,3 +931,155 @@ class _TaskParkedScreenState extends State<TaskParkedScreen>
     }
   }
 }
+
+// import 'dart:developer';
+
+// import 'package:flutter/material.dart';
+// import 'package:flutter_mapbox_navigation/flutter_mapbox_navigation.dart';
+// import 'package:get/get.dart';
+// import 'package:iraqdriver/controller/common_controller.dart';
+// import 'package:iraqdriver/helper/route_helper.dart';
+// import 'package:iraqdriver/helper/shar_pref.dart';
+// import 'package:iraqdriver/utils/useful_methods.dart';
+
+// class TaskParkedScreen extends StatefulWidget {
+//   const TaskParkedScreen({super.key});
+
+//   @override
+//   State<TaskParkedScreen> createState() => _TaskParkedScreenState();
+// }
+
+// class _TaskParkedScreenState extends State<TaskParkedScreen> {
+//   MapBoxNavigationViewController? _controller;
+//   final CommonController controller =
+//       Get.put(CommonController(commonRepo: Get.find()));
+//   String? _instruction;
+//   final bool _isMultipleStop = false;
+//   double? _distanceRemaining, _durationRemaining;
+//   bool _routeBuilt = false;
+//   bool _isNavigating = false;
+//   bool _arrived = false;
+//   late MapBoxOptions _navigationOption;
+//   Map<String, dynamic> userPosition = {};
+
+//   var wayPoints = <WayPoint>[];
+
+//   String? language;
+//   getLanguage() async {
+//     if (mounted) {
+//       language = await Shared_Preferences.prefGetString(
+//           Shared_Preferences.language, 'en');
+//       setState(() {});
+//     }
+//   }
+
+//   Future<void> initialize() async {
+//     if (!mounted) return;
+//     _navigationOption = MapBoxNavigation.instance.getDefaultOptions();
+//     _navigationOption.mode = MapBoxNavigationMode.drivingWithTraffic;
+//     _navigationOption.initialLatitude = currentUserPosition!.latitude;
+//     _navigationOption.initialLongitude = currentUserPosition!.longitude;
+//     _navigationOption.language = language;
+//     _navigationOption.simulateRoute = false;
+//     _navigationOption.isOptimized = true;
+
+//     MapBoxNavigation.instance.registerRouteEventListener(_onRouteEvent);
+//   }
+
+//   @override
+//   void initState() {
+//     initialize();
+
+//     final start = WayPoint(
+//       name: "Start Location",
+//       latitude: currentUserPosition!.latitude,
+//       longitude: currentUserPosition!.longitude,
+//     );
+//     final destination = WayPoint(
+//         name: "Destination Location",
+//         latitude: controller.destinationPosition!.latitude,
+//         longitude: controller.destinationPosition!.longitude);
+
+//     wayPoints.add(start);
+//     wayPoints.add(destination);
+//     super.initState();
+//   }
+
+//   @override
+//   void dispose() {
+//     _controller?.dispose();
+//     super.dispose();
+//   }
+
+//   @override
+//   Widget build(BuildContext context) {
+//     return Scaffold(
+//       body: Column(
+//         children: [
+//           SizedBox(
+//             height: MediaQuery.of(context).size.height * 1,
+//             child: Container(
+//               color: Colors.grey[100],
+//               child: MapBoxNavigationView(
+//                 options: _navigationOption,
+//                 onRouteEvent: _onRouteEvent,
+//                 onCreated: (MapBoxNavigationViewController controller) async {
+//                   _controller = controller;
+//                   controller.initialize();
+
+//                   // Start navigation after initialization
+//                   await MapBoxNavigation.instance.startNavigation(
+//                     wayPoints: wayPoints,
+//                     options: _navigationOption,
+//                   );
+//                 },
+//               ),
+//             ),
+//           ),
+//         ],
+//       ),
+//     );
+//   }
+
+//   Future<void> _onRouteEvent(e) async {
+//     _distanceRemaining = await MapBoxNavigation.instance.getDistanceRemaining();
+//     _durationRemaining = await MapBoxNavigation.instance.getDurationRemaining();
+
+//     switch (e.eventType) {
+//       case MapBoxEvent.progress_change:
+//         var progressEvent = e.data as RouteProgressEvent;
+//         _arrived = progressEvent.arrived!;
+//         if (progressEvent.currentStepInstruction != null) {
+//           _instruction = progressEvent.currentStepInstruction;
+//         }
+//         break;
+//       case MapBoxEvent.route_building:
+//       case MapBoxEvent.route_built:
+//         _routeBuilt = true;
+//         break;
+//       case MapBoxEvent.route_build_failed:
+//         _routeBuilt = false;
+//         break;
+//       case MapBoxEvent.navigation_running:
+//         _isNavigating = true;
+//         break;
+//       case MapBoxEvent.on_arrival:
+//         _arrived = true;
+//         if (!_isMultipleStop) {
+//           await Future.delayed(const Duration(seconds: 3));
+//           await _controller?.finishNavigation();
+//         }
+//         break;
+//       case MapBoxEvent.navigation_finished:
+//       case MapBoxEvent.navigation_cancelled:
+//         _routeBuilt = false;
+//         _isNavigating = false;
+//         Get.toNamed(RouteHelper.getTaskParkedScreen());
+//         break;
+//       default:
+//         break;
+//     }
+//     // Refresh UI
+//     setState(() {});
+//   }
+// }

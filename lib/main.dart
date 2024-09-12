@@ -1,5 +1,6 @@
 import 'package:bot_toast/bot_toast.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_map_tile_caching/flutter_map_tile_caching.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
 import 'constants/constant_apis.dart';
@@ -14,7 +15,10 @@ import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // await Firebase.initializeApp();
+  await FMTCObjectBoxBackend().initialise();
+
+  await const FMTCStore('mapStore').manage.create();
+
   await di.init();
 
   runApp(const MyApp());

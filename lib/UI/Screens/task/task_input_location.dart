@@ -53,7 +53,7 @@ class _TaskInputLocationScreenState extends State<TaskInputLocationScreen> {
     super.initState();
     getLanguage();
     controller.isTracking.value = true;
-    _getLocationUpdates();
+    _getLocationOnce();
     // getPackageIdData();
   }
 
@@ -174,18 +174,23 @@ class _TaskInputLocationScreenState extends State<TaskInputLocationScreen> {
     });
   }
 
-  void _getLocationUpdates() async {
+  void _getLocationOnce() async {
     if (mounted) {
-      controller.location.value.onLocationChanged
-          .listen((LocationData locationData) {
+      try {
+        // Get the current location once
+        LocationData locationData =
+            await controller.location.value.getLocation();
+
         setState(() {
           controller.isLocated.value = true;
           controller.initialPosition.value =
               LatLng(locationData.latitude!, locationData.longitude!);
 
-          controller.currentPosition.value =
+          currentUserPosition =
               LatLng(locationData.latitude!, locationData.longitude!);
 
+
+          // Move the map to the current location if tracking is enabled
           if (controller.isTracking.value) {
             mapController.move(
               LatLng(locationData.latitude!, locationData.longitude!),
@@ -193,7 +198,9 @@ class _TaskInputLocationScreenState extends State<TaskInputLocationScreen> {
             );
           }
         });
-      });
+      } catch (e) {
+        print("Failed to get location: $e");
+      }
     }
   }
 
@@ -666,7 +673,7 @@ class _TaskInputLocationScreenState extends State<TaskInputLocationScreen> {
                         setState(() {
                           controller.isTracking.value = true;
                         });
-                        _getLocationUpdates();
+                        _getLocationOnce();
                       },
                       backgroundColor: Colors.white,
                       foregroundColor: const Color(0xff234274),
@@ -696,7 +703,7 @@ class _TaskInputLocationScreenState extends State<TaskInputLocationScreen> {
     });
   }
 
-  void _onPositionChanged(MapPosition position, bool hasGesture) {
+  void _onPositionChanged(MapCamera position, bool hasGesture) {
     if (hasGesture) {
       setState(() {
         controller.isTracking.value = false;

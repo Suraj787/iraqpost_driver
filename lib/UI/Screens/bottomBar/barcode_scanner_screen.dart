@@ -45,11 +45,13 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
           appBar: AppBar(
             elevation: 4,
             shadowColor: Colors.black38,
-            title: Text(AppLocalizations.of(context)!.scanPackage,
-                style: TextStyle(
-                    color: Color(0xFF070D17),
-                    fontSize: 24,
-                    fontWeight: FontWeight.w600)),
+            title: Text(
+              AppLocalizations.of(context)!.scanPackage,
+              style: const TextStyle(
+                  color: Color(0xFF070D17),
+                  fontSize: 24,
+                  fontWeight: FontWeight.w600),
+            ),
             leading: IconButton(
               onPressed: () {
                 commonController.changeBottomIndex(0);
@@ -75,7 +77,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
                     ),
                     SizedBox(height: Get.height * 0.02),
                     Text(AppLocalizations.of(context)!.scanPackageFromHub,
-                        style: TextStyle(
+                        style: const TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w400,
                             color: Color(0xFF404C5F))),
@@ -85,11 +87,10 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
                         alignment: Alignment.center,
                         children: [
                           MobileScanner(
-                            allowDuplicates: false,
                             controller: barcodeController,
-                            onDetect: (barcode, args) {
+                            onDetect: (barcode) {
                               setState(() {
-                                code = barcode.rawValue!;
+                                code = barcode.barcodes.first.rawValue!;
                                 commonController.traceShipmentApi(
                                     code.toString(), context);
                               });
@@ -126,7 +127,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
                           borderRadius: BorderRadius.circular(15),
                           color: Colors.white,
                         ),
-                        padding: EdgeInsets.all(15),
+                        padding: const EdgeInsets.all(15),
                         child: SingleChildScrollView(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.center,
@@ -138,7 +139,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
                               SizedBox(height: Get.height * 0.02),
                               Text(
                                 AppLocalizations.of(context)!.allPackageScanned,
-                                style: TextStyle(
+                                style: const TextStyle(
                                   color: Color(0xFF264980),
                                   fontSize: 26,
                                   fontWeight: FontWeight.w600,
@@ -149,7 +150,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
                               Text(
                                   AppLocalizations.of(context)!
                                       .youHaveScannedTodayPackage,
-                                  style: TextStyle(
+                                  style: const TextStyle(
                                     color: Color(0xFF264980),
                                     fontSize: 14,
                                   ),
@@ -175,7 +176,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
                                   child: Text(
                                     AppLocalizations.of(context)!.continueTitle,
                                     textAlign: TextAlign.center,
-                                    style: TextStyle(
+                                    style: const TextStyle(
                                       fontSize: 18,
                                       fontWeight: FontWeight.w600,
                                       letterSpacing: -0.34,
@@ -206,7 +207,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
                                   child: Text(
                                     AppLocalizations.of(context)!.add,
                                     textAlign: TextAlign.center,
-                                    style: TextStyle(
+                                    style: const TextStyle(
                                       fontSize: 18,
                                       fontWeight: FontWeight.w600,
                                       letterSpacing: -0.34,

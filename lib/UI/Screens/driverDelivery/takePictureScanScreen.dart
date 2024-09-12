@@ -78,11 +78,10 @@ class _TakePickupScreenState extends State<TakePickupScreen> {
                   alignment: Alignment.center,
                   children: [
                     MobileScanner(
-                      allowDuplicates: false,
                       controller: barcodeController,
-                      onDetect: (barcode, args) {
+                      onDetect: (barcode) {
                         setState(() {
-                          code = barcode.rawValue!;
+                          code = barcode.barcodes.first.rawValue!;
                         });
                       },
                     ),

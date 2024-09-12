@@ -265,3 +265,5 @@ Widget buildSkeletonLoader() {
     ),
   );
 }
+
+LatLng? currentUserPosition;
