@@ -1,6 +1,4 @@
 // ignore_for_file: use_build_context_synchronously
-
-import 'dart:async';
 import 'dart:developer';
 import 'package:flutter/material.dart';
 import 'package:flutter_compass/flutter_compass.dart';
@@ -66,8 +64,6 @@ class _TaskParkedScreenState extends State<TaskParkedScreen>
   List<LatLng> staticPolylinePoints = [];
 
   List instructionsData = [];
-
-  LatLng? _previousPosition;
 
   List<String> navigationText = [];
 
@@ -137,98 +133,6 @@ class _TaskParkedScreenState extends State<TaskParkedScreen>
     _updateTurnByTurnNavigation(locationData);
   }
 
-  /// Gets the users location and updates the map
-  // StreamSubscription<Position>? positionStreamSubscription;
-  // void _getLocationUpdates() async {
-  //   positionStreamSubscription = Geolocator.getPositionStream(
-  //     locationSettings: const LocationSettings(
-  //       accuracy: LocationAccuracy.high,
-  //       distanceFilter: 1,
-  //     ),
-  //   ).listen((Position position) async {
-  //     if (LatLng(position.latitude, position.longitude) ==
-  //         controller.destinationPosition) {
-  //       showDialog(
-  //           context: context,
-  //           builder: (context) {
-  //             return AlertDialog(
-  //               title: const Text('You have reached your destination'),
-  //               actions: [
-  //                 TextButton(
-  //                   onPressed: () {
-  //                     Get.back();
-  //                   },
-  //                   child: const Text('Ok'),
-  //                 )
-  //               ],
-  //             );
-  //           });
-  //       Get.back();
-  //     }
-  //     _hasDeviatedFromRoute(position);
-
-  //     if (!isStarted) {
-  //       getDirections(
-  //         destinationLocation: controller.destinationPosition!,
-  //         position: position,
-  //       );
-
-  //       setState(() {
-  //         staticPolylinePoints = controller.polylineLatLngs;
-  //       });
-
-  //       final distance = Geolocator.distanceBetween(
-  //         position.latitude,
-  //         position.longitude,
-  //         controller.destinationPosition!.latitude,
-  //         controller.destinationPosition!.longitude,
-  //       );
-
-  //       debugPrint('$distance');
-
-  //       double speed = position.speed;
-  //       double speedAccuracy = position.speedAccuracy;
-
-  //       speedInKph = speedAccuracy < 4 ? speed * 3.6 : 0;
-
-  //       log('Speed: $speedInKph km/h');
-
-  //       distanceToDestination = '${(distance / 1000).toStringAsFixed(1)} km';
-
-  //       log('$distanceToDestination to destination');
-
-  //       setState(() {
-  //         isStarted = true;
-  //       });
-  //     } else if (isStarted && hasDeviated) {
-  //       getDirections(
-  //           destinationLocation: controller.destinationPosition!,
-  //           position: position);
-
-  //       double speed = position.speed;
-  //       double speedAccuracy = position.speedAccuracy;
-
-  //       speedInKph = speedAccuracy < 4 ? speed * 3.6 : 0;
-
-  //       setState(() {
-  //         staticPolylinePoints = controller.polylineLatLngs;
-  //         hasDeviated = false;
-  //       });
-
-  //       log('Speed: $speedInKph km/h');
-  //     } else if (isStarted) {
-  //       updateMap(position);
-
-  //       double speed = position.speed;
-  //       double speedAccuracy = position.speedAccuracy;
-
-  //       speedInKph = speedAccuracy < 4 ? speed * 3.6 : 0;
-
-  //       log('Speed: $speedInKph km/h');
-  //     }
-  //   });
-  // }
-
   void _getLocationUpdates() {
     controller.currentLocation.value.onLocationChanged
         .listen((LocationData locationData) {
@@ -266,6 +170,11 @@ class _TaskParkedScreenState extends State<TaskParkedScreen>
         double speedAccuracy = locationData.speedAccuracy!;
 
         speedInKph = speedAccuracy < 4 ? 0 : speed * 3.6;
+
+        setState(() {
+          staticPolylinePoints = controller.polylineLatLngs;
+          hasDeviated = false;
+        });
 
         log('Speed: $speedInKph km/h');
       } else if (isStarted && hasDeviated) {
@@ -327,36 +236,29 @@ class _TaskParkedScreenState extends State<TaskParkedScreen>
   }
 
   void _updateTurnByTurnNavigation(LocationData locationData) {
-    // List of steps from the directions API
     List<Steps> steps = controller.directionsModel.routeInfo!.first.steps!;
 
-    log('$steps');
-
-    // Initial text and icon setup
     text = steps.first.instruction;
     icon = getIconImage(text ?? '');
 
-    // Decode the polyline from the geometry field
     List<LatLng> routePolyline = decodePolyline(
         controller.directionsModel.routeInfo!.first.geometry!.coordinates!);
 
     // Calculate the total distance to the destination
     double totalDistance = calculateTotalDistance(routePolyline);
-    print(
-        "Total distance to destination: ${totalDistance.toStringAsFixed(2)} kilometers");
+    log("Total distance to destination: ${totalDistance.toStringAsFixed(2)} kilometers");
 
     // Calculate the remaining distance from the current position
     double distanceRemaining = calculateDistanceRemaining(
         routePolyline, LatLng(locationData.latitude!, locationData.longitude!));
-    print(
-        "Distance remaining: ${distanceRemaining.toStringAsFixed(2)} kilometers");
+    log("Distance remaining: ${distanceRemaining.toStringAsFixed(2)} kilometers");
 
     // Update the navigation instruction based on the remaining distance
     for (var step in steps) {
       double stepRemainingDistance =
           double.parse(step.remainingDistance!.split(' ').first);
 
-      if (distanceRemaining <= stepRemainingDistance) {
+      if (distanceRemaining > stepRemainingDistance) {
         text = step.instruction;
         icon = getIconImage(text ?? '');
 
@@ -368,56 +270,9 @@ class _TaskParkedScreenState extends State<TaskParkedScreen>
     }
   }
 
-  double calculateTotalDistance(List<LatLng> points) {
-    double totalDistance = 0.0;
-
-    for (int i = 0; i < points.length - 1; i++) {
-      double segmentDistance = Geolocator.distanceBetween(
-        points[i].latitude,
-        points[i].longitude,
-        points[i + 1].latitude,
-        points[i + 1].longitude,
-      );
-
-      totalDistance += segmentDistance;
-    }
-
-    return totalDistance / 1000; // Convert distance to kilometers
-  }
-
-  double calculateDistanceRemaining(
-      List<LatLng> points, LatLng currentPosition) {
-    double smallestDifference = double.infinity;
-    int indexOfClosestPoint = -1;
-
-    // Find the closest point on the route to the current position
-    for (int i = 0; i < points.length - 1; i++) {
-      double differenceBetweenPoints = Geolocator.distanceBetween(
-        points[i].latitude,
-        points[i].longitude,
-        currentPosition.latitude,
-        currentPosition.longitude,
-      );
-
-      if (differenceBetweenPoints < smallestDifference) {
-        smallestDifference = differenceBetweenPoints;
-        indexOfClosestPoint = i;
-      }
-    }
-
-    // Log the closest point information
-    log('Point with smallest difference: ${points[indexOfClosestPoint]} at index $indexOfClosestPoint');
-
-    // Create a new list of points from the closest point to the end
-    List<LatLng> remainingPoints = points.sublist(indexOfClosestPoint);
-
-    // Calculate the remaining distance along the polyline
-    double distanceRemaining = calculateTotalDistance(remainingPoints);
-
-    return distanceRemaining;
-  }
-
-  void _hasDeviatedFromRoute(LocationData locationData) {
+  void _hasDeviatedFromRoute(
+    LocationData locationData,
+  ) {
     // Find the closest point on the route
     LatLng closestPoint = findClosestPointOnRoute(
         LatLng(locationData.latitude!, locationData.longitude!),
@@ -437,62 +292,6 @@ class _TaskParkedScreenState extends State<TaskParkedScreen>
       hasDeviated = true;
     } else {
       hasDeviated = false;
-    }
-  }
-
-  Set<Marker> animationMarkers = {};
-
-  Widget? getIconImage(String instruction) {
-    instruction = instruction.toLowerCase();
-    if (instruction.contains('north') || instruction.contains('south')) {
-      return Image.asset(
-        Images.departStraight,
-        color: Colors.white,
-      );
-    } else if (instruction.contains('right') || instruction.contains('east')) {
-      return const Icon(
-        Icons.turn_right,
-        size: 36,
-        color: Colors.white,
-      );
-    } else if (instruction.contains('sharp left')) {
-      return Image.asset(
-        Images.sharpLeft,
-        color: Colors.white,
-      );
-    } else if (instruction.contains('left') || instruction.contains('west')) {
-      return const Icon(
-        Icons.turn_left,
-        size: 36,
-        color: Colors.white,
-      );
-    } else if (instruction.contains('sharp right')) {
-      return Image.asset(
-        Images.sharpRight,
-        color: Colors.white,
-      );
-    } else if (instruction.contains('straight') ||
-        instruction.contains(
-          'continue forward',
-        )) {
-      return Image.asset(
-        Images.continueStraight,
-        color: Colors.white,
-      );
-    } else if (instruction.contains('u-turn') ||
-        instruction.contains('make a u-turn')) {
-      return Image.asset(
-        Images.uTurnLeft,
-        color: Colors.white,
-      );
-    } else if (instruction.contains('destination')) {
-      return const Icon(
-        Icons.location_on,
-        size: 36,
-        color: Colors.white,
-      );
-    } else {
-      return null;
     }
   }
 
@@ -931,155 +730,3 @@ class _TaskParkedScreenState extends State<TaskParkedScreen>
     }
   }
 }
-
-// import 'dart:developer';
-
-// import 'package:flutter/material.dart';
-// import 'package:flutter_mapbox_navigation/flutter_mapbox_navigation.dart';
-// import 'package:get/get.dart';
-// import 'package:iraqdriver/controller/common_controller.dart';
-// import 'package:iraqdriver/helper/route_helper.dart';
-// import 'package:iraqdriver/helper/shar_pref.dart';
-// import 'package:iraqdriver/utils/useful_methods.dart';
-
-// class TaskParkedScreen extends StatefulWidget {
-//   const TaskParkedScreen({super.key});
-
-//   @override
-//   State<TaskParkedScreen> createState() => _TaskParkedScreenState();
-// }
-
-// class _TaskParkedScreenState extends State<TaskParkedScreen> {
-//   MapBoxNavigationViewController? _controller;
-//   final CommonController controller =
-//       Get.put(CommonController(commonRepo: Get.find()));
-//   String? _instruction;
-//   final bool _isMultipleStop = false;
-//   double? _distanceRemaining, _durationRemaining;
-//   bool _routeBuilt = false;
-//   bool _isNavigating = false;
-//   bool _arrived = false;
-//   late MapBoxOptions _navigationOption;
-//   Map<String, dynamic> userPosition = {};
-
-//   var wayPoints = <WayPoint>[];
-
-//   String? language;
-//   getLanguage() async {
-//     if (mounted) {
-//       language = await Shared_Preferences.prefGetString(
-//           Shared_Preferences.language, 'en');
-//       setState(() {});
-//     }
-//   }
-
-//   Future<void> initialize() async {
-//     if (!mounted) return;
-//     _navigationOption = MapBoxNavigation.instance.getDefaultOptions();
-//     _navigationOption.mode = MapBoxNavigationMode.drivingWithTraffic;
-//     _navigationOption.initialLatitude = currentUserPosition!.latitude;
-//     _navigationOption.initialLongitude = currentUserPosition!.longitude;
-//     _navigationOption.language = language;
-//     _navigationOption.simulateRoute = false;
-//     _navigationOption.isOptimized = true;
-
-//     MapBoxNavigation.instance.registerRouteEventListener(_onRouteEvent);
-//   }
-
-//   @override
-//   void initState() {
-//     initialize();
-
-//     final start = WayPoint(
-//       name: "Start Location",
-//       latitude: currentUserPosition!.latitude,
-//       longitude: currentUserPosition!.longitude,
-//     );
-//     final destination = WayPoint(
-//         name: "Destination Location",
-//         latitude: controller.destinationPosition!.latitude,
-//         longitude: controller.destinationPosition!.longitude);
-
-//     wayPoints.add(start);
-//     wayPoints.add(destination);
-//     super.initState();
-//   }
-
-//   @override
-//   void dispose() {
-//     _controller?.dispose();
-//     super.dispose();
-//   }
-
-//   @override
-//   Widget build(BuildContext context) {
-//     return Scaffold(
-//       body: Column(
-//         children: [
-//           SizedBox(
-//             height: MediaQuery.of(context).size.height * 1,
-//             child: Container(
-//               color: Colors.grey[100],
-//               child: MapBoxNavigationView(
-//                 options: _navigationOption,
-//                 onRouteEvent: _onRouteEvent,
-//                 onCreated: (MapBoxNavigationViewController controller) async {
-//                   _controller = controller;
-//                   controller.initialize();
-
-//                   // Start navigation after initialization
-//                   await MapBoxNavigation.instance.startNavigation(
-//                     wayPoints: wayPoints,
-//                     options: _navigationOption,
-//                   );
-//                 },
-//               ),
-//             ),
-//           ),
-//         ],
-//       ),
-//     );
-//   }
-
-//   Future<void> _onRouteEvent(e) async {
-//     _distanceRemaining = await MapBoxNavigation.instance.getDistanceRemaining();
-//     _durationRemaining = await MapBoxNavigation.instance.getDurationRemaining();
-
-//     switch (e.eventType) {
-//       case MapBoxEvent.progress_change:
-//         var progressEvent = e.data as RouteProgressEvent;
-//         _arrived = progressEvent.arrived!;
-//         if (progressEvent.currentStepInstruction != null) {
-//           _instruction = progressEvent.currentStepInstruction;
-//         }
-//         break;
-//       case MapBoxEvent.route_building:
-//       case MapBoxEvent.route_built:
-//         _routeBuilt = true;
-//         break;
-//       case MapBoxEvent.route_build_failed:
-//         _routeBuilt = false;
-//         break;
-//       case MapBoxEvent.navigation_running:
-//         _isNavigating = true;
-//         break;
-//       case MapBoxEvent.on_arrival:
-//         _arrived = true;
-//         if (!_isMultipleStop) {
-//           await Future.delayed(const Duration(seconds: 3));
-//           await _controller?.finishNavigation();
-//         }
-//         break;
-//       case MapBoxEvent.navigation_finished:
-//       case MapBoxEvent.navigation_cancelled:
-//         _routeBuilt = false;
-//         _isNavigating = false;
-//         Get.toNamed(RouteHelper.getTaskParkedScreen());
-//         break;
-//       default:
-//         break;
-//     }
-//     // Refresh UI
-//     setState(() {});
-//   }
-// }

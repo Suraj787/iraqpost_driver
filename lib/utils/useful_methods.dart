@@ -1,7 +1,9 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
+import 'package:iraqdriver/utils/image.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:shimmer/shimmer.dart';
 
@@ -267,3 +269,102 @@ Widget buildSkeletonLoader() {
 }
 
 LatLng? currentUserPosition;
+
+double calculateTotalDistance(List<LatLng> points) {
+  double totalDistance = 0.0;
+
+  for (int i = 0; i < points.length - 1; i++) {
+    double segmentDistance = Geolocator.distanceBetween(
+      points[i].latitude,
+      points[i].longitude,
+      points[i + 1].latitude,
+      points[i + 1].longitude,
+    );
+
+    totalDistance += segmentDistance;
+  }
+
+  return totalDistance / 1000; // Convert distance to kilometers
+}
+
+double calculateDistanceRemaining(List<LatLng> points, LatLng currentPosition) {
+  double smallestDifference = double.infinity;
+  int indexOfClosestPoint = -1;
+
+  // Find the closest point on the route to the current position
+  for (int i = 0; i < points.length - 1; i++) {
+    double differenceBetweenPoints = Geolocator.distanceBetween(
+      points[i].latitude,
+      points[i].longitude,
+      currentPosition.latitude,
+      currentPosition.longitude,
+    );
+
+    if (differenceBetweenPoints < smallestDifference) {
+      smallestDifference = differenceBetweenPoints;
+      indexOfClosestPoint = i;
+    }
+  }
+
+  // Create a new list of points from the closest point to the end
+  List<LatLng> remainingPoints = points.sublist(indexOfClosestPoint);
+
+  // Calculate the remaining distance along the polyline
+  double distanceRemaining = calculateTotalDistance(remainingPoints);
+
+  return distanceRemaining;
+}
+
+Widget? getIconImage(String instruction) {
+  instruction = instruction.toLowerCase();
+  if (instruction.contains('north') || instruction.contains('south')) {
+    return Image.asset(
+      Images.departStraight,
+      color: Colors.white,
+    );
+  } else if (instruction.contains('right') || instruction.contains('east')) {
+    return const Icon(
+      Icons.turn_right,
+      size: 36,
+      color: Colors.white,
+    );
+  } else if (instruction.contains('sharp left')) {
+    return Image.asset(
+      Images.sharpLeft,
+      color: Colors.white,
+    );
+  } else if (instruction.contains('left') || instruction.contains('west')) {
+    return const Icon(
+      Icons.turn_left,
+      size: 36,
+      color: Colors.white,
+    );
+  } else if (instruction.contains('sharp right')) {
+    return Image.asset(
+      Images.sharpRight,
+      color: Colors.white,
+    );
+  } else if (instruction.contains('straight') ||
+      instruction.contains(
+        'continue forward',
+      )) {
+    return Image.asset(
+      Images.continueStraight,
+      color: Colors.white,
+    );
+  } else if (instruction.contains('u-turn') ||
+      instruction.contains('make a u-turn')) {
+    return Image.asset(
+      Images.uTurnLeft,
+      color: Colors.white,
+    );
+  } else if (instruction.contains('destination')) {
+    return const Icon(
+      Icons.location_on,
+      size: 36,
+      color: Colors.white,
+    );
+  } else {
+    return null;
+  }
+}
